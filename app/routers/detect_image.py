@@ -4,8 +4,11 @@ import re
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-from app.core.security import verify_token
+from app.core.database import get_db
+from app.dependencies import consume_examination, require_quota
+from app.models import User
 from app.services import image_forensics
 from app.services.llm_client import ask_llm_vision
 
@@ -108,8 +111,12 @@ def _fuse_verdict(report: image_forensics.ForensicReport, llm_verdict: dict | No
     return ("ai" if llm_says_ai else "human"), confidence, reasoning
 
 
-@router.post("/api/detect-image", response_model=DetectImageResponse, dependencies=[Depends(verify_token)])
-async def detect_image(file: UploadFile = File(...)):
+@router.post("/api/detect-image", response_model=DetectImageResponse)
+async def detect_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_quota),
+    db: Session = Depends(get_db),
+):
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=415,
@@ -149,6 +156,11 @@ async def detect_image(file: UploadFile = File(...)):
         llm_verdict = None
 
     verdict, confidence, reasoning = _fuse_verdict(report, llm_verdict)
+
+    # Only counts against the free quota once we actually have a verdict to
+    # show for it (forensics-only fallback still counts - it's still a
+    # completed examination, just degraded_mode=True).
+    consume_examination(db, current_user)
 
     return DetectImageResponse(
         verdict=verdict,

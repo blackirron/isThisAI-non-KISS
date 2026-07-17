@@ -3,8 +3,11 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
-from app.core.security import verify_token
+from app.core.database import get_db
+from app.dependencies import consume_examination, require_quota
+from app.models import User
 from app.services.llm_client import ask_llm
 
 router = APIRouter()
@@ -51,8 +54,12 @@ def _extract_json(raw: str) -> dict:
     return json.loads(match.group(0))
 
 
-@router.post("/api/detect", response_model=DetectResponse, dependencies=[Depends(verify_token)])
-async def detect(payload: DetectRequest):
+@router.post("/api/detect", response_model=DetectResponse)
+async def detect(
+    payload: DetectRequest,
+    current_user: User = Depends(require_quota),
+    db: Session = Depends(get_db),
+):
     text = payload.text.strip()
 
     if len(text) < MIN_CHARS:
@@ -82,5 +89,9 @@ async def detect(payload: DetectRequest):
     confidence = max(0, min(100, confidence))
 
     reasoning = str(parsed.get("reasoning", "")).strip() or "No specific reasoning returned."
+
+    # Only counts against the free quota once we actually have a verdict to
+    # show for it - a failed LLM call above never reaches this line.
+    consume_examination(db, current_user)
 
     return DetectResponse(verdict=verdict, confidence=confidence, reasoning=reasoning)

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>IsThisAI — Text & Image Examiner</title>
+<title>IsThisAI — Digital Forensics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -15,46 +15,218 @@
     --border: #E7E2D6;
     --stamp-ai: #B3261E;
     --stamp-human: #2F6B3E;
+    --accent: #C9A227;
+    --accent-tint: #F3E9D2;
+    --sidebar-w: 240px;
+    --topbar-h: 64px;
   }
 
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
 
   body {
     margin: 0;
-    min-height: 100vh;
     background: var(--paper);
-    background-image:
-      radial-gradient(circle at 1px 1px, rgba(0,0,0,0.035) 1px, transparent 0);
+    background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,0.035) 1px, transparent 0);
     background-size: 22px 22px;
     color: var(--ink);
     font-family: 'Lora', Georgia, serif;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 48px 20px;
   }
 
-  .case-file {
-    width: 100%;
-    max-width: 640px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 12px 28px rgba(28,28,28,0.06);
-    padding: 40px 44px;
-    position: relative;
-    overflow: hidden;
-  }
+  button { font-family: inherit; }
+  a { color: inherit; }
 
-  .case-file::before {
-    content: "";
-    position: absolute;
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: fixed;
     top: 0; left: 0; right: 0;
-    height: 6px;
-    background: repeating-linear-gradient(90deg, var(--ink) 0 14px, transparent 14px 22px);
-    opacity: 0.06;
+    height: var(--topbar-h);
+    background: var(--ink);
+    color: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    z-index: 30;
+  }
+  .topbar-brand { display: flex; align-items: center; gap: 12px; }
+  .brand-mark {
+    width: 34px; height: 34px;
+    border-radius: 7px;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .brand-text-title {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  .brand-text-sub {
+    font-family: 'Oswald', sans-serif;
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    color: #B7B0A0;
+    line-height: 1.1;
   }
 
+  .topbar-nav { display: flex; align-items: center; gap: 4px; }
+  .topbar-link {
+    background: none;
+    border: none;
+    color: #D8D3C4;
+    font-family: 'Oswald', sans-serif;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    padding: 9px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .topbar-link:hover { background: rgba(255,255,255,0.08); color: var(--paper); }
+  .topbar-link.active { background: rgba(255,255,255,0.12); color: var(--paper); }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+
+  .plan-pill {
+    display: flex; align-items: center; gap: 9px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 20px;
+    padding: 6px 8px 6px 13px;
+    cursor: pointer;
+  }
+  .plan-pill-label {
+    font-family: 'Oswald', sans-serif; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.04em; color: #D8D3C4; white-space: nowrap;
+  }
+  .plan-pill.is-pro .plan-pill-label { color: var(--accent); }
+  .plan-pill-upgrade {
+    font-family: 'Oswald', sans-serif; font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--accent); color: #3B2F00;
+    border: none; padding: 5px 11px; border-radius: 14px; cursor: pointer;
+  }
+  .plan-pill-upgrade:hover { background: #DCB63C; }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    border: none;
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    position: fixed;
+    top: var(--topbar-h); left: 0; bottom: 0;
+    width: var(--sidebar-w);
+    background: var(--paper);
+    border-right: 1px solid var(--border);
+    padding: 22px 14px;
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    overflow-y: auto;
+  }
+  .side-nav { display: flex; flex-direction: column; gap: 3px; }
+  .side-link {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 11px 12px;
+    border-radius: 7px;
+    font-family: 'Lora', Georgia, serif;
+    font-size: 14.5px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .side-link:hover { background: rgba(28,28,28,0.045); }
+  .side-link.active { background: var(--accent-tint); font-weight: 600; }
+  .side-link .ico { flex: none; width: 17px; text-align: center; opacity: 0.75; }
+
+  .side-panel {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 18px;
+  }
+  .about-card, .tip-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 15px 16px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #58544A;
+  }
+  .about-card { background: var(--panel); }
+  .tip-card { background: var(--accent-tint); border-color: #E3D4A8; color: #6B5A20; }
+  .about-card h4, .tip-card h4 {
+    margin: 0 0 6px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+  }
+  .about-version { margin-top: 8px; font-size: 11px; color: var(--muted); }
+
+  .plan-card {
+    border: 1px solid var(--border); border-radius: 8px; padding: 15px 16px;
+    background: var(--panel);
+  }
+  .plan-card.is-free { background: var(--accent-tint); border-color: #E3D4A8; }
+  .plan-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .plan-card-name { font-family: 'Oswald', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+  .plan-card.is-free .plan-card-name { color: #7A5E00; }
+  .plan-card.is-pro .plan-card-name { color: var(--stamp-human); }
+  .plan-card-usage { font-size: 11.5px; color: var(--muted); margin-bottom: 8px; }
+  .usage-bar { height: 5px; border-radius: 3px; background: rgba(0,0,0,0.08); overflow: hidden; margin-bottom: 12px; }
+  .usage-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s ease; }
+  .usage-bar-fill.full { background: var(--stamp-ai); }
+  .plan-card-cta {
+    display: block; width: 100%; text-align: center;
+    font-family: 'Oswald', sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em;
+    background: var(--ink); color: var(--paper); border: none; border-radius: 6px; padding: 9px; cursor: pointer;
+  }
+  .plan-card-cta:hover { background: #333; }
+
+  /* ---------- Main layout ---------- */
+  .main {
+    margin-left: var(--sidebar-w);
+    margin-top: var(--topbar-h);
+    padding: 40px 44px 60px;
+    max-width: 1180px;
+  }
+
+  .view[hidden] { display: none; }
+
+  .page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 26px;
+    gap: 20px;
+  }
   .kicker {
     font-family: 'Oswald', sans-serif;
     font-size: 11px;
@@ -64,27 +236,80 @@
     color: var(--muted);
     margin-bottom: 6px;
   }
-
   h1 {
     font-family: 'Oswald', sans-serif;
-    font-size: 26px;
+    font-size: 32px;
     font-weight: 700;
     letter-spacing: -0.01em;
     margin: 0 0 6px;
   }
-
   .subhead {
     font-size: 14.5px;
     color: var(--muted);
     font-style: italic;
-    margin: 0 0 22px;
+    margin: 0;
+    max-width: 520px;
+  }
+  .how-it-works-btn {
+    flex: none;
+    font-family: 'Oswald', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 10px 16px;
+    border-radius: 7px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .how-it-works-btn:hover { background: var(--accent-tint); }
+
+  /* ---------- Case file card (examine) ---------- */
+  .case-file {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 12px 28px rgba(28,28,28,0.05);
+    padding: 8px 32px 32px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .case-file::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+    background: repeating-linear-gradient(90deg, var(--ink) 0 14px, transparent 14px 22px);
+    opacity: 0.06;
   }
 
-  /* Mode tabs */
+  .lock-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 46px 40px; text-align: center; margin-bottom: 28px;
+  }
+  .lock-icon {
+    width: 52px; height: 52px; border-radius: 50%; background: var(--accent-tint);
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+    margin: 0 auto 18px;
+  }
+  .lock-card h2 { font-family: 'Oswald', sans-serif; font-size: 20px; margin: 0 0 8px; }
+  .lock-card p { font-size: 14px; color: var(--muted); max-width: 380px; margin: 0 auto 24px; line-height: 1.6; }
+  .lock-card .btn-primary {
+    font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.03em;
+    background: var(--ink); color: var(--paper); border: none; padding: 13px 26px; border-radius: 6px; cursor: pointer;
+  }
+  .lock-card .btn-primary:hover { background: #333; }
+  .lock-card .lock-fine { margin-top: 16px; font-size: 12px; color: var(--muted); font-style: italic; }
+
   .mode-tabs {
     display: flex;
     gap: 4px;
-    margin-bottom: 24px;
+    margin: 22px 0 22px;
     border-bottom: 1px solid var(--border);
   }
   .mode-tab {
@@ -102,16 +327,13 @@
     position: relative;
     top: 1px;
   }
-  .mode-tab.active {
-    color: var(--ink);
-    border-bottom: 2px solid var(--ink);
-  }
+  .mode-tab.active { color: var(--ink); border-bottom: 2px solid var(--ink); }
 
   .panel[hidden] { display: none; }
 
   textarea {
     width: 100%;
-    min-height: 200px;
+    min-height: 180px;
     resize: vertical;
     font-family: 'Lora', Georgia, serif;
     font-size: 15.5px;
@@ -119,7 +341,7 @@
     color: var(--ink);
     background: var(--paper);
     border: 1px solid var(--border);
-    border-radius: 3px;
+    border-radius: 6px;
     padding: 18px 20px;
     outline: none;
     transition: border-color 0.2s ease;
@@ -127,42 +349,33 @@
   textarea:focus { border-color: var(--ink); }
   textarea::placeholder { color: #B7B0A0; font-style: italic; }
 
-  .row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 10px;
-  }
-
-  .char-count {
-    font-family: 'Oswald', sans-serif;
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    color: var(--muted);
-  }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+  .char-count { font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.05em; color: var(--muted); }
   .char-count.warn { color: var(--stamp-ai); }
 
   button.examine {
     font-family: 'Oswald', sans-serif;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     background: var(--ink);
     color: var(--paper);
     border: none;
-    padding: 13px 26px;
-    border-radius: 3px;
+    padding: 13px 22px;
+    border-radius: 6px;
     cursor: pointer;
     transition: transform 0.15s ease, background 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
   }
   button.examine:hover:not(:disabled) { background: #333; transform: translateY(-1px); }
   button.examine:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* Image dropzone */
   .dropzone {
     border: 1.5px dashed var(--border);
-    border-radius: 3px;
+    border-radius: 6px;
     background: var(--paper);
     padding: 40px 20px;
     text-align: center;
@@ -170,225 +383,730 @@
     transition: border-color 0.2s ease, background 0.2s ease;
   }
   .dropzone.dragover { border-color: var(--ink); background: #F3F0E8; }
-  .dropzone-title {
-    font-family: 'Oswald', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    margin: 0 0 4px;
-  }
+  .dropzone-title { font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.03em; margin: 0 0 4px; }
   .dropzone-sub { font-size: 12px; color: var(--muted); font-style: italic; margin: 4px 0; }
   .dropzone-hint { font-size: 11.5px; color: var(--muted); margin-top: 10px; }
 
   .preview-wrap { text-align: center; }
-  .preview-wrap img {
-    max-width: 100%;
-    max-height: 280px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-  }
-  .preview-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 12px;
-    color: var(--muted);
-    margin: 10px 2px;
-  }
+  .preview-wrap img { max-width: 100%; max-height: 280px; border: 1px solid var(--border); border-radius: 6px; }
+  .preview-meta { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); margin: 10px 2px; }
   .link-btn {
-    background: none;
-    border: none;
-    color: var(--stamp-ai);
-    font-family: 'Oswald', sans-serif;
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    cursor: pointer;
-    padding: 0;
+    background: none; border: none; color: var(--stamp-ai);
+    font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.05em;
+    text-transform: uppercase; cursor: pointer; padding: 0;
   }
 
-  .verdict-zone {
-    margin-top: 30px;
-    min-height: 4px;
-  }
+  .verdict-zone { margin-top: 26px; min-height: 4px; }
 
   .error-box {
-    border: 1px solid var(--stamp-ai);
-    color: var(--stamp-ai);
-    background: rgba(179, 38, 30, 0.06);
-    padding: 14px 18px;
-    border-radius: 3px;
-    font-size: 14px;
+    border: 1px solid var(--stamp-ai); color: var(--stamp-ai);
+    background: rgba(179, 38, 30, 0.06); padding: 14px 18px; border-radius: 6px; font-size: 14px;
   }
-
   .notice-box {
-    border: 1px solid #C9A227;
-    color: #7A5E00;
-    background: rgba(201, 162, 39, 0.08);
-    padding: 12px 16px;
-    border-radius: 3px;
-    font-size: 13px;
-    margin-top: 14px;
+    border: 1px solid var(--accent); color: #7A5E00; background: rgba(201, 162, 39, 0.08);
+    padding: 12px 16px; border-radius: 6px; font-size: 13px; margin-top: 14px;
   }
 
-  .result {
-    display: flex;
-    align-items: center;
-    gap: 22px;
-    padding-top: 26px;
-    border-top: 1px dashed var(--border);
-  }
-
+  .result { display: flex; align-items: center; gap: 22px; padding-top: 26px; border-top: 1px dashed var(--border); }
   .stamp {
-    flex: none;
-    width: 108px;
-    height: 108px;
-    border-radius: 50%;
-    border: 3.5px solid var(--stamp-color);
-    color: var(--stamp-color);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Oswald', sans-serif;
-    font-weight: 700;
-    text-align: center;
-    transform: rotate(-9deg) scale(0.6);
-    opacity: 0;
-    animation: stampIn 0.45s cubic-bezier(.2,1.4,.4,1) forwards;
-    animation-delay: 0.05s;
+    flex: none; width: 100px; height: 100px; border-radius: 50%;
+    border: 3.5px solid var(--stamp-color); color: var(--stamp-color);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: 'Oswald', sans-serif; font-weight: 700; text-align: center;
+    transform: rotate(-9deg) scale(0.6); opacity: 0;
+    animation: stampIn 0.45s cubic-bezier(.2,1.4,.4,1) forwards; animation-delay: 0.05s;
     position: relative;
   }
-  .stamp::after {
-    content: "";
-    position: absolute;
-    inset: 6px;
-    border: 1px solid var(--stamp-color);
-    border-radius: 50%;
-    opacity: 0.5;
-  }
-  .stamp .verdict-word {
-    font-size: 15px;
-    letter-spacing: 0.03em;
-    line-height: 1.15;
-  }
-  .stamp .confidence {
-    font-family: 'Lora', serif;
-    font-weight: 400;
-    font-style: italic;
-    font-size: 11px;
-    margin-top: 4px;
-    opacity: 0.85;
-  }
+  .stamp::after { content: ""; position: absolute; inset: 6px; border: 1px solid var(--stamp-color); border-radius: 50%; opacity: 0.5; }
+  .stamp .verdict-word { font-size: 14px; letter-spacing: 0.03em; line-height: 1.15; }
+  .stamp .confidence { font-size: 11px; opacity: 0.85; }
+  @keyframes stampIn { to { opacity: 1; transform: rotate(-9deg) scale(1); } }
 
-  @keyframes stampIn {
-    0% { transform: rotate(-9deg) scale(0.6); opacity: 0; }
-    60% { transform: rotate(-7deg) scale(1.08); opacity: 1; }
-    100% { transform: rotate(-7deg) scale(1); opacity: 1; }
-  }
-
-  .verdict-copy .headline {
-    font-family: 'Oswald', sans-serif;
-    font-weight: 600;
-    font-size: 15px;
-    color: var(--stamp-color);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    margin-bottom: 6px;
-  }
-  .verdict-copy .reasoning {
-    font-size: 14.5px;
-    line-height: 1.6;
-    color: #4A463D;
-  }
-
-  /* Forensic evidence (image mode only) */
-  .evidence {
-    margin-top: 18px;
-    font-size: 13px;
-  }
-  .evidence summary {
-    font-family: 'Oswald', sans-serif;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+  .verdict-copy { flex: 1; }
+  .verdict-copy .headline { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 16px; margin-bottom: 6px; }
+  .verdict-copy .reasoning { font-size: 14.5px; line-height: 1.6; color: #4A463D; }
+  .verdict-actions { margin-top: 12px; display: flex; gap: 14px; }
+  .save-btn {
+    background: none; border: none; padding: 0; cursor: pointer;
+    font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
     color: var(--muted);
-    cursor: pointer;
   }
-  .evidence ul { margin: 12px 0 0; padding-left: 18px; }
+  .save-btn.saved { color: var(--accent); }
+  .save-btn:hover { color: var(--ink); }
+
+  .evidence { margin-top: 16px; font-size: 13px; }
+  .evidence summary { cursor: pointer; font-family: 'Oswald', sans-serif; font-size: 12px; color: var(--muted); }
+  .evidence ul { list-style: none; padding: 0; margin: 12px 0 0; }
   .evidence li { margin-bottom: 10px; line-height: 1.55; color: #4A463D; }
   .sig-strong { color: var(--stamp-ai); font-weight: 600; }
   .sig-moderate { color: #A9762C; font-weight: 600; }
   .sig-weak { color: var(--muted); font-weight: 600; }
 
-  .footer-note {
-    margin-top: 26px;
-    font-size: 12px;
-    color: var(--muted);
-    font-style: italic;
-    text-align: center;
+  .footer-note { margin-top: 24px; font-size: 12px; color: var(--muted); font-style: italic; text-align: center; }
+
+  /* ---------- Feature strip ---------- */
+  .feature-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .feature-cell {
+    padding: 20px 22px;
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    border-right: 1px solid var(--border);
+  }
+  .feature-cell:last-child { border-right: none; }
+  .feature-cell .ico { font-size: 18px; flex: none; margin-top: 1px; }
+  .feature-cell h4 { margin: 0 0 3px; font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 600; }
+  .feature-cell p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* ---------- How it works ---------- */
+  .hiw-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 26px 28px; margin-bottom: 24px;
+  }
+  .hiw-card h3 { margin: 0 0 20px; font-family: 'Oswald', sans-serif; font-size: 16px; font-weight: 600; }
+  .hiw-steps { display: flex; align-items: flex-start; gap: 0; }
+  .hiw-step { display: flex; align-items: flex-start; gap: 13px; flex: 1; }
+  .hiw-num {
+    flex: none; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent-tint); color: #6B5A20;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 13px;
+  }
+  .hiw-step h4 { margin: 3px 0 3px; font-family: 'Oswald', sans-serif; font-size: 13px; font-weight: 600; }
+  .hiw-step p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .hiw-arrow { flex: none; color: var(--border); font-size: 18px; padding: 4px 14px 0; }
+
+  .pro-tip {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 18px 24px; display: flex; align-items: center; gap: 12px; font-size: 13.5px;
+  }
+  .pro-tip .ico { font-size: 16px; }
+  .pro-tip strong { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 12.5px; margin-right: 6px; }
+  .pro-tip span.dim { color: var(--muted); }
+
+  /* ---------- History / Case files ---------- */
+  .record-list { display: flex; flex-direction: column; gap: 10px; }
+  .record-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px 20px; display: flex; align-items: center; gap: 16px;
+  }
+  .record-badge {
+    flex: none; width: 52px; height: 52px; border-radius: 50%;
+    border: 2.5px solid var(--badge-color); color: var(--badge-color);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 9.5px; text-align: center;
+  }
+  .record-badge .rconf { font-size: 9px; opacity: 0.85; font-weight: 500; }
+  .record-body { flex: 1; min-width: 0; }
+  .record-snippet { font-size: 13.5px; color: var(--ink); margin: 0 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .record-meta { font-family: 'Oswald', sans-serif; font-size: 10.5px; letter-spacing: 0.03em; color: var(--muted); text-transform: uppercase; }
+  .record-actions { flex: none; display: flex; gap: 10px; align-items: center; }
+  .icon-btn {
+    background: none; border: 1px solid var(--border); border-radius: 6px; width: 32px; height: 32px;
+    cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; color: var(--muted);
+  }
+  .icon-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .icon-btn.starred { color: var(--accent); border-color: var(--accent); }
+
+  .empty-state {
+    background: var(--panel); border: 1px dashed var(--border); border-radius: 8px;
+    padding: 50px 30px; text-align: center; color: var(--muted);
+  }
+  .empty-state .ico { font-size: 30px; margin-bottom: 10px; display: block; }
+  .empty-state h4 { font-family: 'Oswald', sans-serif; font-size: 14px; color: var(--ink); margin: 0 0 6px; }
+  .empty-state p { font-size: 13px; margin: 0; }
+
+  /* ---------- Guidelines ---------- */
+  .guide-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 26px 30px; margin-bottom: 20px;
+  }
+  .guide-card h3 { font-family: 'Oswald', sans-serif; font-size: 15px; margin: 0 0 12px; }
+  .guide-card p, .guide-card li { font-size: 14px; line-height: 1.7; color: #3F3B33; }
+  .guide-card ul { margin: 0; padding-left: 20px; }
+  .legend-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13.5px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+
+  /* ---------- Settings ---------- */
+  .settings-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 24px 28px; margin-bottom: 18px;
+  }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row-label { font-size: 14px; }
+  .settings-row-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .danger-btn {
+    font-family: 'Oswald', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.03em;
+    background: none; border: 1px solid var(--stamp-ai); color: var(--stamp-ai);
+    padding: 9px 15px; border-radius: 6px; cursor: pointer;
+  }
+  .danger-btn:hover { background: rgba(179,38,30,0.06); }
+  .stat-num { font-family: 'Oswald', sans-serif; font-size: 22px; font-weight: 700; }
+
+  .billing-card {
+    background: var(--panel); border: 1px solid var(--ink); border-radius: 8px;
+    padding: 24px 28px; margin-bottom: 18px;
+  }
+  .billing-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .billing-plan-name { font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .billing-plan-sub { font-size: 13px; color: var(--muted); }
+  .billing-badge {
+    font-family: 'Oswald', sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 5px 11px; border-radius: 14px;
+  }
+  .billing-badge.free { background: var(--accent-tint); color: #7A5E00; }
+  .billing-badge.pro { background: #E4F0E6; color: var(--stamp-human); }
+  .billing-btn {
+    font-family: 'Oswald', sans-serif; font-size: 12.5px; font-weight: 600; letter-spacing: 0.03em;
+    border: none; border-radius: 6px; padding: 11px 20px; cursor: pointer;
+  }
+  .billing-btn.upgrade { background: var(--ink); color: var(--paper); }
+  .billing-btn.upgrade:hover { background: #333; }
+  .billing-btn.downgrade { background: none; border: 1px solid var(--border); color: var(--muted); }
+  .billing-btn.downgrade:hover { border-color: var(--ink); color: var(--ink); }
+  .billing-note {
+    margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border);
+    font-size: 11.5px; color: var(--muted); font-style: italic; line-height: 1.5;
   }
 
-  @media (max-width: 480px) {
-    .case-file { padding: 28px 24px; }
-    .result { flex-direction: column; align-items: flex-start; }
+  @media (max-width: 980px) {
+    .feature-strip { grid-template-columns: repeat(2, 1fr); }
+    .feature-cell:nth-child(2) { border-right: none; }
+    .feature-cell { border-bottom: 1px solid var(--border); }
+    .hiw-steps { flex-direction: column; gap: 16px; }
+    .hiw-arrow { display: none; }
+  }
+  @media (max-width: 760px) {
+    .sidebar { display: none; }
+    .main { margin-left: 0; padding: 28px 20px 50px; }
+    .feature-strip { grid-template-columns: 1fr; }
+    .feature-cell { border-right: none; }
+    .topbar-nav { display: none; }
   }
 </style>
 </head>
 <body>
 
-<div class="case-file">
-  <div class="kicker">Case File · Digital Forensics</div>
-  <h1>IsThisAI</h1>
-  <p class="subhead">Paste text or upload an image. We'll examine the evidence and render a verdict.</p>
-
-  <div class="mode-tabs">
-    <button class="mode-tab active" data-mode="text" type="button">Text</button>
-    <button class="mode-tab" data-mode="image" type="button">Image</button>
-  </div>
-
-  <!-- TEXT MODE -->
-  <div class="panel" data-panel="text">
-    <textarea id="inputText" placeholder="Paste the paragraph you want examined here…"></textarea>
-
-    <div class="row">
-      <span class="char-count" id="charCount">0 / 6000</span>
-      <button class="examine" id="examineTextBtn">Examine</button>
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="brand-mark">IA</div>
+    <div>
+      <div class="brand-text-title">IsThisAI</div>
+      <div class="brand-text-sub">DIGITAL FORENSICS</div>
     </div>
-
-    <div class="verdict-zone" id="textVerdictZone"></div>
   </div>
-
-  <!-- IMAGE MODE -->
-  <div class="panel" data-panel="image" hidden>
-    <input type="file" id="imageFileInput" accept="image/png,image/jpeg,image/webp" hidden />
-
-    <div class="dropzone" id="imageDropzone">
-      <p class="dropzone-title">Drop an image here, or click to choose a file</p>
-      <p class="dropzone-sub">PNG · JPG · WEBP</p>
-      <p class="dropzone-hint">Max 8MB</p>
+  <div class="topbar-nav">
+    <button class="topbar-link" data-view="history" type="button">⟳ History</button>
+    <button class="topbar-link" data-view="cases" type="button">🗂 Cases</button>
+    <button class="topbar-link" data-view="guidelines" type="button">📖 Guidelines</button>
+  </div>
+  <div class="topbar-right">
+    <div class="plan-pill" id="planPill" data-view="settings">
+      <span class="plan-pill-label" id="planPillLabel">FREE · 3 LEFT</span>
+      <button class="plan-pill-upgrade" id="planPillUpgrade" type="button">Upgrade</button>
     </div>
+    <button class="avatar" data-view="settings" title="Settings">E</button>
+  </div>
+</div>
 
-    <div class="preview-wrap" id="imagePreviewWrap" hidden>
-      <img id="imagePreview" alt="Selected image preview" />
-      <div class="preview-meta">
-        <span id="imageFilename"></span>
-        <button class="link-btn" id="imageClearBtn" type="button">Remove</button>
+<div class="sidebar">
+  <nav class="side-nav">
+    <button class="side-link active" data-view="new" type="button"><span class="ico">🔍</span> New Examination</button>
+    <button class="side-link" data-view="history" type="button"><span class="ico">⟳</span> History</button>
+    <button class="side-link" data-view="cases" type="button"><span class="ico">🗂</span> Case Files</button>
+    <button class="side-link" data-view="guidelines" type="button"><span class="ico">📖</span> Guidelines</button>
+    <button class="side-link" data-view="settings" type="button"><span class="ico">⚙</span> Settings</button>
+  </nav>
+
+  <div class="side-panel">
+    <div class="about-card">
+      <h4>About IsThisAI</h4>
+      A digital forensics tool to help examine evidence and detect AI-generated or manipulated content.
+      <div class="about-version">Version 1.1.0</div>
+    </div>
+    <div class="plan-card" id="sidebarPlanCard">
+      <div class="plan-card-top">
+        <span class="plan-card-name" id="sidebarPlanName">Free Plan</span>
       </div>
-      <div class="row" style="justify-content:flex-end;">
-        <button class="examine" id="examineImageBtn">Examine</button>
+      <div class="plan-card-usage" id="sidebarPlanUsage">2 of 3 examinations left</div>
+      <div class="usage-bar"><div class="usage-bar-fill" id="sidebarUsageFill" style="width:33%"></div></div>
+      <button class="plan-card-cta" id="sidebarUpgradeBtn" type="button">Upgrade to Pro</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ============ NEW EXAMINATION ============ -->
+  <section class="view" id="view-new">
+    <div class="page-head">
+      <div>
+        <div class="kicker">Case File · Digital Forensics</div>
+        <h1>IsThisAI</h1>
+        <p class="subhead">Paste text or upload an image. We'll examine the evidence and render a verdict.</p>
+      </div>
+      <button class="how-it-works-btn" data-view="guidelines" type="button">💡 How it works</button>
+    </div>
+
+    <div class="lock-card" id="lockCard" hidden>
+      <div class="lock-icon">🔒</div>
+      <h2>Case closed — free limit reached</h2>
+      <p>You've used all 3 free examinations on this account. Upgrade to Pro for unlimited text and image examinations, saved history, and priority processing.</p>
+      <button class="btn-primary" id="lockUpgradeBtn" type="button">Upgrade to Pro — $19/month</button>
+      <div class="lock-fine">Cancel anytime from Settings.</div>
+    </div>
+
+    <div class="case-file" id="caseFile">
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="text" type="button">Text</button>
+        <button class="mode-tab" data-mode="image" type="button">Image</button>
+      </div>
+
+      <!-- TEXT MODE -->
+      <div class="panel" data-panel="text">
+        <textarea id="inputText" placeholder="Paste the paragraph you want examined here…"></textarea>
+        <div class="row">
+          <span class="char-count" id="charCount">0 / 6000</span>
+          <button class="examine" id="examineTextBtn">🔍 Examine Evidence</button>
+        </div>
+        <div class="verdict-zone" id="textVerdictZone"></div>
+      </div>
+
+      <!-- IMAGE MODE -->
+      <div class="panel" data-panel="image" hidden>
+        <input type="file" id="imageFileInput" accept="image/png,image/jpeg,image/webp" hidden />
+        <div class="dropzone" id="imageDropzone">
+          <p class="dropzone-title">Drop an image here, or click to choose a file</p>
+          <p class="dropzone-sub">PNG · JPG · WEBP</p>
+          <p class="dropzone-hint">Max 8MB</p>
+        </div>
+        <div class="preview-wrap" id="imagePreviewWrap" hidden>
+          <img id="imagePreview" alt="Selected image preview" />
+          <div class="preview-meta">
+            <span id="imageFilename"></span>
+            <button class="link-btn" id="imageClearBtn" type="button">Remove</button>
+          </div>
+          <div class="row" style="justify-content:flex-end;">
+            <button class="examine" id="examineImageBtn">🔍 Examine Evidence</button>
+          </div>
+        </div>
+        <div class="verdict-zone" id="imageVerdictZone"></div>
+      </div>
+
+      <div class="footer-note">Judgment is probabilistic, not proof — treat it as a second opinion.</div>
+    </div>
+
+    <div class="feature-strip">
+      <div class="feature-cell"><span class="ico">🔒</span><div><h4>Privacy First</h4><p>Your data is never stored on our servers.</p></div></div>
+      <div class="feature-cell"><span class="ico">🛡</span><div><h4>Evidence Based</h4><p>Analysis with transparent signals.</p></div></div>
+      <div class="feature-cell"><span class="ico">⚖</span><div><h4>Probabilistic Verdict</h4><p>Not proof. Second opinion.</p></div></div>
+      <div class="feature-cell"><span class="ico">☰</span><div><h4>Explainable</h4><p>See why we think so.</p></div></div>
+    </div>
+
+    <div class="hiw-card">
+      <h3>How it works</h3>
+      <div class="hiw-steps">
+        <div class="hiw-step"><div class="hiw-num">1</div><div><h4>Input Evidence</h4><p>Paste text or upload an image for examination.</p></div></div>
+        <div class="hiw-arrow">→</div>
+        <div class="hiw-step"><div class="hiw-num">2</div><div><h4>Signal Analysis</h4><p>We analyze patterns and extract forensic signals.</p></div></div>
+        <div class="hiw-arrow">→</div>
+        <div class="hiw-step"><div class="hiw-num">3</div><div><h4>Scoring Engine</h4><p>Signals are evaluated by our probabilistic model.</p></div></div>
+        <div class="hiw-arrow">→</div>
+        <div class="hiw-step"><div class="hiw-num">4</div><div><h4>Verdict &amp; Report</h4><p>Get a verdict with confidence and explainable evidence.</p></div></div>
       </div>
     </div>
 
-    <div class="verdict-zone" id="imageVerdictZone"></div>
-  </div>
+    <div class="pro-tip"><span class="ico">✦</span><strong>Pro Tip</strong><span class="dim">For best results, provide original, unedited content when possible.</span></div>
+  </section>
 
-  <div class="footer-note">Judgment is probabilistic, not proof — treat it as a second opinion.</div>
+  <!-- ============ HISTORY ============ -->
+  <section class="view" id="view-history" hidden>
+    <div class="page-head">
+      <div>
+        <div class="kicker">Case File · Digital Forensics</div>
+        <h1>History</h1>
+        <p class="subhead">Every examination you've run on this device, most recent first.</p>
+      </div>
+    </div>
+    <div id="historyList"></div>
+  </section>
+
+  <!-- ============ CASE FILES ============ -->
+  <section class="view" id="view-cases" hidden>
+    <div class="page-head">
+      <div>
+        <div class="kicker">Case File · Digital Forensics</div>
+        <h1>Case Files</h1>
+        <p class="subhead">Examinations you've starred for later reference.</p>
+      </div>
+    </div>
+    <div id="casesList"></div>
+  </section>
+
+  <!-- ============ GUIDELINES ============ -->
+  <section class="view" id="view-guidelines" hidden>
+    <div class="page-head">
+      <div>
+        <div class="kicker">Case File · Digital Forensics</div>
+        <h1>Guidelines</h1>
+        <p class="subhead">How the examiner reaches a verdict, and how much to trust it.</p>
+      </div>
+    </div>
+
+    <div class="guide-card">
+      <h3>Text examinations</h3>
+      <p>Pasted text is sent to a language model with a prompt asking it to weigh linguistic signals of machine vs. human writing — sentence rhythm, word choice, structural tells — and return a strict verdict with a confidence score and a one-line rationale. This is a model opinion, not a lab test: there's no ground truth to check it against.</p>
+    </div>
+
+    <div class="guide-card">
+      <h3>Image examinations</h3>
+      <p>Image verdicts combine two independent evidence sources:</p>
+      <ul>
+        <li><strong>Deterministic forensics</strong> — the file's own metadata is scanned for AI-tool fingerprints (embedded generation parameters, named generators, Content Credentials markers) and camera EXIF completeness.</li>
+        <li><strong>Vision-model judgment</strong> — the same model looks at the image itself for visual tells, with the forensic findings given as context.</li>
+      </ul>
+      <p>A strong metadata fingerprint overrides a contradicting visual read. Absence of metadata proves nothing on its own — screenshots and social-media re-saves strip it from real photos just as readily as from AI images.</p>
+    </div>
+
+    <div class="guide-card">
+      <h3>Reading the evidence tags</h3>
+      <div class="legend-row"><span class="legend-dot" style="background:var(--stamp-ai)"></span><span><span class="sig-strong">Strong</span> — close to conclusive on its own (e.g. an embedded generation-parameters block).</span></div>
+      <div class="legend-row"><span class="legend-dot" style="background:#A9762C"></span><span><span class="sig-moderate">Moderate</span> — meaningfully shifts the verdict but isn't decisive alone.</span></div>
+      <div class="legend-row"><span class="legend-dot" style="background:var(--muted)"></span><span><span class="sig-weak">Weak</span> — a minor signal folded into the overall score.</span></div>
+    </div>
+
+    <div class="guide-card">
+      <h3>Honest limitation</h3>
+      <p>LLM-based AI detection is inherently probabilistic and not forensically reliable. Treat every verdict here as a second opinion, not proof — and weigh image verdicts by whether the "why" behind them cites hard metadata or a visual impression.</p>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section class="view" id="view-settings" hidden>
+    <div class="page-head">
+      <div>
+        <div class="kicker">Case File · Digital Forensics</div>
+        <h1>Settings</h1>
+        <p class="subhead">This device's local examiner data.</p>
+      </div>
+    </div>
+
+    <div class="billing-card">
+      <div class="billing-top">
+        <div>
+          <div class="billing-plan-name" id="billingPlanName">Free Plan</div>
+          <div class="billing-plan-sub" id="billingPlanSub">2 of 3 free examinations remaining</div>
+        </div>
+        <span class="billing-badge free" id="billingBadge">FREE</span>
+      </div>
+      <button class="billing-btn upgrade" id="billingUpgradeBtn" type="button">Upgrade to Pro — $19/month</button>
+      <button class="billing-btn downgrade" id="billingDowngradeBtn" type="button" hidden>Cancel Pro plan</button>
+      <div class="billing-note" id="billingNote">Plan and usage are tied to your account now, not this browser. Upgrade here doesn't collect payment yet — it's a placeholder until real billing (Stripe) is wired in.</div>
+    </div>
+
+    <div class="settings-card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Account</div>
+          <div class="settings-row-sub" id="accountEmail">—</div>
+        </div>
+        <button class="danger-btn" id="logoutBtn" type="button">Log out</button>
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Examinations logged</div>
+          <div class="settings-row-sub">Stored only in this browser — never sent to a server.</div>
+        </div>
+        <div class="stat-num" id="statCount">0</div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Starred case files</div>
+          <div class="settings-row-sub">Examinations you've marked for reference.</div>
+        </div>
+        <div class="stat-num" id="statStarred">0</div>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label">Clear all history</div>
+          <div class="settings-row-sub">Removes every logged examination and case file from this device. Can't be undone.</div>
+        </div>
+        <button class="danger-btn" id="clearHistoryBtn" type="button">Clear history</button>
+      </div>
+    </div>
+
+    <div class="about-card" style="max-width:520px;">
+      <h4>About IsThisAI</h4>
+      A digital forensics tool to help examine evidence and detect AI-generated or manipulated content.
+      <div class="about-version">Version 1.1.0</div>
+    </div>
+  </section>
+
 </div>
 
 <script>
-  /* ---------- Mode tab switching ---------- */
+  /* =========================================================
+     Navigation
+  ========================================================= */
+  const views = document.querySelectorAll('.view');
+  const navButtons = document.querySelectorAll('[data-view]');
+
+  function showView(name) {
+    views.forEach(v => { v.hidden = v.id !== `view-${name}`; });
+    document.querySelectorAll('.side-link').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+    document.querySelectorAll('.topbar-link').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+    if (name === 'history') renderHistory();
+    if (name === 'cases') renderCases();
+    if (name === 'settings') renderSettings();
+    if (typeof renderPlanUI === 'function') renderPlanUI();
+    window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+  }
+
+  navButtons.forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+
+  /* =========================================================
+     Auth guard — this page requires a logged-in account.
+     Everything below reads plan/usage from the server, not
+     localStorage — localStorage only holds the auth token.
+  ========================================================= */
+  const TOKEN_KEY = 'isthisai_token';
+
+  function getToken() { return localStorage.getItem(TOKEN_KEY); }
+  function authHeaders() { return { 'Authorization': `Bearer ${getToken()}` }; }
+  function logout() { localStorage.removeItem(TOKEN_KEY); window.location.href = '/'; }
+
+  if (!getToken()) {
+    window.location.href = '/login';
+  }
+
+  let currentUser = null; // { id, email, plan, examinations_used, examinations_remaining }
+
+  async function loadCurrentUser() {
+    try {
+      const res = await fetch('/api/auth/me', { headers: authHeaders() });
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) throw new Error('Could not load account.');
+      currentUser = await res.json();
+      renderPlanUI();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  function isLocked() {
+    return !!currentUser && currentUser.plan === 'free' && currentUser.examinations_remaining <= 0;
+  }
+
+  async function goUpgrade() {
+    // PLACEHOLDER: flips the account to Pro with no payment collected —
+    // mirrors the backend's /api/auth/upgrade, which is itself a stand-in
+    // until real checkout (Stripe) is wired up. Safe to click through to
+    // see the paywall unlock, not something to leave reachable by real
+    // users before billing exists.
+    if (!window.confirm('Demo mode: this upgrades your account to Pro without collecting payment. Continue?')) return;
+    try {
+      const res = await fetch('/api/auth/upgrade', { method: 'POST', headers: authHeaders() });
+      if (!res.ok) throw new Error('Upgrade failed.');
+      currentUser = await res.json();
+      renderPlanUI();
+    } catch (err) {
+      alert(err.message || 'Something went wrong.');
+    }
+  }
+
+  async function goDowngrade() {
+    try {
+      const res = await fetch('/api/auth/downgrade', { method: 'POST', headers: authHeaders() });
+      if (!res.ok) throw new Error('Could not cancel Pro plan.');
+      currentUser = await res.json();
+      renderPlanUI();
+    } catch (err) {
+      alert(err.message || 'Something went wrong.');
+    }
+  }
+
+  function renderPlanUI() {
+    if (!currentUser) return;
+    const plan = currentUser.plan;
+    const left = plan === 'pro' ? null : Math.max(0, currentUser.examinations_remaining);
+    const used = currentUser.examinations_used;
+    const pct = plan === 'pro' ? 100 : Math.min(100, (used / 3) * 100);
+
+    // Topbar pill
+    const pill = document.getElementById('planPill');
+    const pillLabel = document.getElementById('planPillLabel');
+    const pillUpgrade = document.getElementById('planPillUpgrade');
+    pill.classList.toggle('is-pro', plan === 'pro');
+    pillLabel.textContent = plan === 'pro' ? 'PRO' : `FREE · ${left} LEFT`;
+    pillUpgrade.hidden = plan === 'pro';
+
+    // Avatar initial from the account's email
+    const avatarEl = document.querySelector('.avatar');
+    if (avatarEl && currentUser.email) avatarEl.textContent = currentUser.email.charAt(0).toUpperCase();
+
+    // Sidebar plan card
+    const sideCard = document.getElementById('sidebarPlanCard');
+    document.getElementById('sidebarPlanName').textContent = plan === 'pro' ? 'Pro Plan' : 'Free Plan';
+    document.getElementById('sidebarPlanUsage').textContent = plan === 'pro'
+      ? 'Unlimited examinations'
+      : `${left} of 3 examinations left`;
+    const fill = document.getElementById('sidebarUsageFill');
+    fill.style.width = `${pct}%`;
+    fill.classList.toggle('full', plan === 'free' && left === 0);
+    document.getElementById('sidebarUpgradeBtn').hidden = plan === 'pro';
+    sideCard.classList.toggle('is-free', plan === 'free');
+
+    // Settings billing card
+    const billingName = document.getElementById('billingPlanName');
+    const billingSub = document.getElementById('billingPlanSub');
+    const billingBadge = document.getElementById('billingBadge');
+    const billingUpgradeBtn = document.getElementById('billingUpgradeBtn');
+    const billingDowngradeBtn = document.getElementById('billingDowngradeBtn');
+    const accountEmail = document.getElementById('accountEmail');
+    if (accountEmail) accountEmail.textContent = currentUser.email;
+    if (billingName) {
+      billingName.textContent = plan === 'pro' ? 'Pro Plan' : 'Free Plan';
+      billingSub.textContent = plan === 'pro'
+        ? 'Unlimited text & image examinations'
+        : `${left} of 3 free examinations remaining`;
+      billingBadge.textContent = plan === 'pro' ? 'PRO' : 'FREE';
+      billingBadge.classList.toggle('free', plan === 'free');
+      billingBadge.classList.toggle('pro', plan === 'pro');
+      billingUpgradeBtn.hidden = plan === 'pro';
+      billingDowngradeBtn.hidden = plan !== 'pro';
+    }
+
+    // New Examination view: swap case-file for the lock card once free demos are gone
+    const locked = isLocked();
+    document.getElementById('lockCard').hidden = !locked;
+    document.getElementById('caseFile').hidden = locked;
+  }
+
+  document.getElementById('planPillUpgrade').addEventListener('click', goUpgrade);
+  document.getElementById('sidebarUpgradeBtn').addEventListener('click', goUpgrade);
+  document.getElementById('lockUpgradeBtn').addEventListener('click', goUpgrade);
+  document.getElementById('billingUpgradeBtn').addEventListener('click', goUpgrade);
+  document.getElementById('billingDowngradeBtn').addEventListener('click', goDowngrade);
+  document.getElementById('logoutBtn').addEventListener('click', logout);
+
+  /* =========================================================
+     Local history / case-file storage
+  ========================================================= */
+  const STORAGE_KEY = 'isthisai_records';
+
+  function loadRecords() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+  function saveRecords(records) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }
+  function addRecord(record) {
+    const records = loadRecords();
+    records.unshift(record);
+    saveRecords(records.slice(0, 300)); // cap so localStorage doesn't grow unbounded
+  }
+  function toggleStar(id) {
+    const records = loadRecords();
+    const rec = records.find(r => r.id === id);
+    if (rec) { rec.starred = !rec.starred; saveRecords(records); }
+    renderHistory(); renderCases();
+  }
+  function deleteRecord(id) {
+    saveRecords(loadRecords().filter(r => r.id !== id));
+    renderHistory(); renderCases();
+  }
+  function fmtTime(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' +
+           d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function recordCardHTML(rec) {
+    const isAI = rec.verdict === 'ai';
+    const color = isAI ? 'var(--stamp-ai)' : 'var(--stamp-human)';
+    const word = isAI ? 'AI' : 'HUMAN';
+    return `
+      <div class="record-card" data-id="${rec.id}">
+        <div class="record-badge" style="--badge-color:${color}">
+          <span>${word}</span>
+          <span class="rconf">${rec.confidence}%</span>
+        </div>
+        <div class="record-body">
+          <p class="record-snippet">${rec.snippet || '(image examination)'}</p>
+          <div class="record-meta">${rec.mode === 'image' ? 'IMAGE' : 'TEXT'} · ${fmtTime(rec.timestamp)}</div>
+        </div>
+        <div class="record-actions">
+          <button class="icon-btn star-toggle ${rec.starred ? 'starred' : ''}" title="${rec.starred ? 'Remove from case files' : 'Save to case files'}">${rec.starred ? '★' : '☆'}</button>
+          <button class="icon-btn delete-btn" title="Delete">✕</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function wireRecordActions(container) {
+    container.querySelectorAll('.star-toggle').forEach(btn => {
+      btn.addEventListener('click', () => toggleStar(btn.closest('.record-card').dataset.id));
+    });
+    container.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteRecord(btn.closest('.record-card').dataset.id));
+    });
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    const records = loadRecords();
+    if (records.length === 0) {
+      list.innerHTML = `<div class="empty-state"><span class="ico">⟳</span><h4>No examinations yet</h4><p>Run a text or image examination and it'll show up here.</p></div>`;
+      return;
+    }
+    list.innerHTML = `<div class="record-list">${records.map(recordCardHTML).join('')}</div>`;
+    wireRecordActions(list);
+  }
+
+  function renderCases() {
+    const list = document.getElementById('casesList');
+    const records = loadRecords().filter(r => r.starred);
+    if (records.length === 0) {
+      list.innerHTML = `<div class="empty-state"><span class="ico">🗂</span><h4>No case files saved</h4><p>Star an examination from its result or from History to keep it here.</p></div>`;
+      return;
+    }
+    list.innerHTML = `<div class="record-list">${records.map(recordCardHTML).join('')}</div>`;
+    wireRecordActions(list);
+  }
+
+  function renderSettings() {
+    const records = loadRecords();
+    document.getElementById('statCount').textContent = records.length;
+    document.getElementById('statStarred').textContent = records.filter(r => r.starred).length;
+  }
+
+  document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+    if (records_confirm()) {
+      localStorage.removeItem(STORAGE_KEY);
+      renderSettings(); renderHistory(); renderCases();
+    }
+  });
+  function records_confirm() {
+    return window.confirm('Clear all logged examinations and case files on this device? This cannot be undone.');
+  }
+
+  /* =========================================================
+     Mode tab switching (Text / Image)
+  ========================================================= */
   const modeTabs = document.querySelectorAll('.mode-tab');
   const panels = document.querySelectorAll('.panel');
 
@@ -401,9 +1119,11 @@
     });
   });
 
-  /* ---------- Shared stamp renderer ---------- */
-  function renderStamp(zoneEl, { verdict, confidence, reasoning }) {
-    const isAI = verdict === 'ai';
+  /* =========================================================
+     Shared stamp / error renderers
+  ========================================================= */
+  function renderStamp(zoneEl, data, recordId) {
+    const isAI = data.verdict === 'ai';
     const color = isAI ? 'var(--stamp-ai)' : 'var(--stamp-human)';
     const label = isAI ? 'AI-Generated' : 'Human-Made';
     const stampWord = isAI ? 'AI' : 'HUMAN';
@@ -412,21 +1132,37 @@
       <div class="result">
         <div class="stamp" style="--stamp-color:${color}">
           <span class="verdict-word">${stampWord}</span>
-          <span class="confidence">${confidence}% conf.</span>
+          <span class="confidence">${data.confidence}% conf.</span>
         </div>
         <div class="verdict-copy">
           <div class="headline" style="color:${color}">${label}</div>
-          <div class="reasoning">${reasoning}</div>
+          <div class="reasoning">${data.reasoning}</div>
+          <div class="verdict-actions">
+            <button class="save-btn" id="saveBtn-${recordId}" type="button">☆ Save to case files</button>
+          </div>
         </div>
       </div>
     `;
+
+    const saveBtn = zoneEl.querySelector(`#saveBtn-${recordId}`);
+    saveBtn.addEventListener('click', () => {
+      const records = loadRecords();
+      const rec = records.find(r => r.id === recordId);
+      if (!rec) return;
+      rec.starred = !rec.starred;
+      saveRecords(records);
+      saveBtn.textContent = rec.starred ? '★ Saved to case files' : '☆ Save to case files';
+      saveBtn.classList.toggle('saved', rec.starred);
+    });
   }
 
   function renderError(zoneEl, message) {
     zoneEl.innerHTML = `<div class="error-box">${message}</div>`;
   }
 
-  /* ---------- TEXT MODE ---------- */
+  /* =========================================================
+     TEXT MODE
+  ========================================================= */
   const inputText = document.getElementById('inputText');
   const charCount = document.getElementById('charCount');
   const examineTextBtn = document.getElementById('examineTextBtn');
@@ -449,6 +1185,8 @@
       return;
     }
 
+    if (isLocked()) { renderPlanUI(); return; }
+
     examineTextBtn.disabled = true;
     examineTextBtn.textContent = 'Examining…';
     textVerdictZone.innerHTML = '';
@@ -456,28 +1194,44 @@
     try {
       const res = await fetch('/api/detect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ text })
       });
 
+      if (res.status === 401) { logout(); return; }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        if (res.status === 402) { await loadCurrentUser(); return; }
         throw new Error(err.detail || `Request failed (${res.status})`);
       }
 
       const data = await res.json();
-      renderStamp(textVerdictZone, data);
+      const recordId = `t${Date.now()}`;
+      addRecord({
+        id: recordId,
+        mode: 'text',
+        timestamp: Date.now(),
+        verdict: data.verdict,
+        confidence: data.confidence,
+        reasoning: data.reasoning,
+        snippet: text.slice(0, 140),
+        starred: false
+      });
+      renderStamp(textVerdictZone, data, recordId);
+      await loadCurrentUser(); // pulls the updated examinations_used from the server
     } catch (err) {
       renderError(textVerdictZone, err.message || 'Something went wrong during examination.');
     } finally {
       examineTextBtn.disabled = false;
-      examineTextBtn.textContent = 'Examine';
+      examineTextBtn.textContent = '🔍 Examine Evidence';
     }
   }
 
   examineTextBtn.addEventListener('click', examineText);
 
-  /* ---------- IMAGE MODE ---------- */
+  /* =========================================================
+     IMAGE MODE
+  ========================================================= */
   const dropzone = document.getElementById('imageDropzone');
   const imageFileInput = document.getElementById('imageFileInput');
   const previewWrap = document.getElementById('imagePreviewWrap');
@@ -537,6 +1291,7 @@
 
   async function examineImage() {
     if (!selectedFile) return;
+    if (isLocked()) { renderPlanUI(); return; }
 
     examineImageBtn.disabled = true;
     examineImageBtn.textContent = 'Examining…';
@@ -546,15 +1301,29 @@
     formData.append('file', selectedFile);
 
     try {
-      const res = await fetch('/api/detect-image', { method: 'POST', body: formData });
+      const res = await fetch('/api/detect-image', { method: 'POST', headers: authHeaders(), body: formData });
 
+      if (res.status === 401) { logout(); return; }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        if (res.status === 402) { await loadCurrentUser(); return; }
         throw new Error(err.detail || `Request failed (${res.status})`);
       }
 
       const data = await res.json();
-      renderStamp(imageVerdictZone, data);
+      const recordId = `i${Date.now()}`;
+      addRecord({
+        id: recordId,
+        mode: 'image',
+        timestamp: Date.now(),
+        verdict: data.verdict,
+        confidence: data.confidence,
+        reasoning: data.reasoning,
+        snippet: selectedFile.name,
+        starred: false
+      });
+      renderStamp(imageVerdictZone, data, recordId);
+      await loadCurrentUser(); // pulls the updated examinations_used from the server
 
       if (data.degraded_mode) {
         const notice = document.createElement('div');
@@ -583,11 +1352,15 @@
       renderError(imageVerdictZone, err.message || 'Something went wrong during examination.');
     } finally {
       examineImageBtn.disabled = false;
-      examineImageBtn.textContent = 'Examine';
+      examineImageBtn.textContent = '🔍 Examine Evidence';
     }
   }
 
   examineImageBtn.addEventListener('click', examineImage);
+
+  /* Initial render */
+  showView('new');
+  loadCurrentUser();
 </script>
 
 </body>
