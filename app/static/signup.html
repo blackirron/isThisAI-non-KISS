@@ -131,7 +131,12 @@
         })
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(`Server error (${res.status}). Please try again in a moment.`);
+      }
       if (!res.ok) throw new Error(data.detail || 'Signup failed.');
 
       localStorage.setItem('isthisai_token', data.access_token);
