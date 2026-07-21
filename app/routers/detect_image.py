@@ -14,6 +14,7 @@ from app.services import image_forensics
 from app.services.llm_client import ask_llm_vision
 
 router = APIRouter()
+router = APIRouter() logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MB
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
