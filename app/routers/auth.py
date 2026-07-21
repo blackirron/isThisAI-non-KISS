@@ -57,23 +57,12 @@ def me(current_user: User = Depends(get_current_user)):
     return _user_out(current_user)
 
 
-@router.post("/upgrade", response_model=UserOut)
-def upgrade(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """PLACEHOLDER — flips the account to Pro with no payment collected.
-    This exists so the paywall UI can be exercised end to end before
-    Stripe (or another processor) is wired in. Replace the body of this
-    endpoint with a real checkout-session flow + webhook before any real
-    user relies on it — right now anyone with a token can call this and
-    get Pro for free."""
-    current_user.plan = "pro"
-    db.add(current_user)
-    db.commit()
-    db.refresh(current_user)
-    return _user_out(current_user)
-
-
 @router.post("/downgrade", response_model=UserOut)
 def downgrade(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Self-service switch back to Free. Kept mainly for testing the paywall
+    repeatedly without creating new accounts — real Pro purchases are a
+    one-time payment (see app/routers/payments.py), so there's no refund
+    logic tied to this; it just flips the flag back."""
     current_user.plan = "free"
     db.add(current_user)
     db.commit()

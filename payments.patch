@@ -1,0 +1,411 @@
+diff --git a/.env.example b/.env.example
+index 0434fdc..c6000a8 100644
+--- a/.env.example
++++ b/.env.example
+@@ -11,3 +11,9 @@ ANTHROPIC_MODEL=claude-sonnet-4-6
+ 
+ JWT_SECRET=random_string_hgfjsghbdthsb
+ DATABASE_URL=sqlite:///./isthisai.db
++
++# Razorpay — get Test keys instantly (no KYC) from Dashboard > Settings > API Keys,
++# in Test Mode. Switch to Live keys after KYC to accept real money.
++RAZORPAY_KEY_ID=rzp_test_your_key_id
++RAZORPAY_KEY_SECRET=your_key_secret
++PRO_PRICE_INR=499
+diff --git a/app/core/config.py b/app/core/config.py
+index 5fbcbab..d086010 100644
+--- a/app/core/config.py
++++ b/app/core/config.py
+@@ -22,5 +22,12 @@ class Settings:
+ 
+     CORS_ORIGINS: list[str] = ["*"]
+ 
++    # Razorpay — one-time "lifetime Pro" purchase. Test-mode keys (rzp_test_...)
++    # work with zero KYC and let you test the full flow with Razorpay's dummy
++    # card/UPI right now; swap in live keys (rzp_live_...) once KYC clears.
++    RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "")
++    RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "")
++    PRO_PRICE_INR: int = int(os.getenv("PRO_PRICE_INR", "499"))
++
+ 
+ settings = Settings()
+diff --git a/app/main.py b/app/main.py
+index 8d93e00..7eccb60 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
+ 
+ from app.core.config import settings
+ from app.core.database import init_db
+-from app.routers import health, detect, detect_image, auth
++from app.routers import health, detect, detect_image, auth, payments
+ 
+ app = FastAPI(title=settings.APP_NAME)
+ 
+@@ -26,6 +26,7 @@ app.include_router(health.router)
+ app.include_router(auth.router)
+ app.include_router(detect.router)
+ app.include_router(detect_image.router)
++app.include_router(payments.router)
+ 
+ # Clean page routes. These are declared before the StaticFiles mount below,
+ # so they take priority over it - the mount only ever handles paths none
+diff --git a/app/models.py b/app/models.py
+index 6451430..642c6de 100644
+--- a/app/models.py
++++ b/app/models.py
+@@ -25,3 +25,24 @@ class User(Base):
+     examinations_used = Column(Integer, nullable=False, default=0)
+ 
+     created_at = Column(DateTime, default=datetime.utcnow)
++
++
++class Payment(Base):
++    __tablename__ = "payments"
++
++    id = Column(String, primary_key=True, default=_new_id)
++    user_id = Column(String, index=True, nullable=False)
++
++    razorpay_order_id = Column(String, unique=True, index=True, nullable=False)
++    razorpay_payment_id = Column(String, nullable=True)
++    razorpay_signature = Column(String, nullable=True)
++
++    amount_paise = Column(Integer, nullable=False)
++    currency = Column(String, nullable=False, default="INR")
++
++    # "created" -> order opened, no money moved yet
++    # "paid"    -> signature verified server-side, user upgraded
++    # "failed"  -> Razorpay reported a failure/cancellation
++    status = Column(String, nullable=False, default="created")
++
++    created_at = Column(DateTime, default=datetime.utcnow)
+diff --git a/app/routers/auth.py b/app/routers/auth.py
+index 6dc763b..e3c790d 100644
+--- a/app/routers/auth.py
++++ b/app/routers/auth.py
+@@ -57,23 +57,12 @@ def me(current_user: User = Depends(get_current_user)):
+     return _user_out(current_user)
+ 
+ 
+-@router.post("/upgrade", response_model=UserOut)
+-def upgrade(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+-    """PLACEHOLDER — flips the account to Pro with no payment collected.
+-    This exists so the paywall UI can be exercised end to end before
+-    Stripe (or another processor) is wired in. Replace the body of this
+-    endpoint with a real checkout-session flow + webhook before any real
+-    user relies on it — right now anyone with a token can call this and
+-    get Pro for free."""
+-    current_user.plan = "pro"
+-    db.add(current_user)
+-    db.commit()
+-    db.refresh(current_user)
+-    return _user_out(current_user)
+-
+-
+ @router.post("/downgrade", response_model=UserOut)
+ def downgrade(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
++    """Self-service switch back to Free. Kept mainly for testing the paywall
++    repeatedly without creating new accounts — real Pro purchases are a
++    one-time payment (see app/routers/payments.py), so there's no refund
++    logic tied to this; it just flips the flag back."""
+     current_user.plan = "free"
+     db.add(current_user)
+     db.commit()
+diff --git a/app/routers/payments.py b/app/routers/payments.py
+new file mode 100644
+index 0000000..6052402
+--- /dev/null
++++ b/app/routers/payments.py
+@@ -0,0 +1,116 @@
++import razorpay
++from fastapi import APIRouter, Depends, HTTPException, status
++from sqlalchemy.orm import Session
++
++from app.core.config import settings
++from app.core.database import get_db
++from app.dependencies import get_current_user
++from app.models import Payment, User
++from app.routers.auth import _user_out
++from app.schemas import CreateOrderResponse, UserOut, VerifyPaymentRequest
++
++router = APIRouter(prefix="/api/payments", tags=["payments"])
++
++
++def _client() -> razorpay.Client:
++    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
++        raise HTTPException(
++            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
++            detail="Payments aren't configured yet — RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET missing.",
++        )
++    return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
++
++
++@router.post("/create-order", response_model=CreateOrderResponse)
++def create_order(
++    current_user: User = Depends(get_current_user),
++    db: Session = Depends(get_db),
++):
++    """Opens a Razorpay order for a one-time "lifetime Pro" purchase. No
++    money moves here — this just reserves an order id that the frontend
++    hands to Razorpay's Checkout widget. The account is only upgraded once
++    /verify confirms a signed payment against this exact order."""
++    if current_user.plan == "pro":
++        raise HTTPException(status_code=400, detail="This account is already Pro.")
++
++    amount_paise = settings.PRO_PRICE_INR * 100
++    client = _client()
++
++    try:
++        order = client.order.create(
++            {
++                "amount": amount_paise,
++                "currency": "INR",
++                "notes": {"user_id": current_user.id, "email": current_user.email},
++            }
++        )
++    except Exception as exc:
++        raise HTTPException(status_code=502, detail=f"Could not start payment: {exc}")
++
++    payment = Payment(
++        user_id=current_user.id,
++        razorpay_order_id=order["id"],
++        amount_paise=amount_paise,
++        currency="INR",
++        status="created",
++    )
++    db.add(payment)
++    db.commit()
++
++    return CreateOrderResponse(
++        order_id=order["id"],
++        amount=amount_paise,
++        currency="INR",
++        key_id=settings.RAZORPAY_KEY_ID,
++        name="IsThisAI Pro",
++        description="Lifetime Pro access — unlimited examinations",
++    )
++
++
++@router.post("/verify", response_model=UserOut)
++def verify_payment(
++    payload: VerifyPaymentRequest,
++    current_user: User = Depends(get_current_user),
++    db: Session = Depends(get_db),
++):
++    """Verifies Razorpay's HMAC signature server-side — the only step that
++    actually proves the payment happened — then flips the account to Pro.
++    Never trust a client-side 'payment succeeded' callback on its own."""
++    payment = (
++        db.query(Payment)
++        .filter(Payment.razorpay_order_id == payload.razorpay_order_id)
++        .first()
++    )
++    if not payment or payment.user_id != current_user.id:
++        raise HTTPException(status_code=404, detail="Order not found for this account.")
++
++    if payment.status == "paid":
++        # Already processed (e.g. duplicate callback) — just return current state.
++        return _user_out(current_user)
++
++    client = _client()
++    try:
++        client.utility.verify_payment_signature(
++            {
++                "razorpay_order_id": payload.razorpay_order_id,
++                "razorpay_payment_id": payload.razorpay_payment_id,
++                "razorpay_signature": payload.razorpay_signature,
++            }
++        )
++    except razorpay.errors.SignatureVerificationError:
++        payment.status = "failed"
++        db.add(payment)
++        db.commit()
++        raise HTTPException(status_code=400, detail="Payment signature could not be verified.")
++
++    payment.status = "paid"
++    payment.razorpay_payment_id = payload.razorpay_payment_id
++    payment.razorpay_signature = payload.razorpay_signature
++    db.add(payment)
++
++    current_user.plan = "pro"
++    db.add(current_user)
++    db.commit()
++    db.refresh(current_user)
++
++    return _user_out(current_user)
+diff --git a/app/schemas.py b/app/schemas.py
+index af349b2..f8fef36 100644
+--- a/app/schemas.py
++++ b/app/schemas.py
+@@ -27,3 +27,18 @@ class TokenResponse(BaseModel):
+     access_token: str
+     token_type: str = "bearer"
+     user: UserOut
++
++
++class CreateOrderResponse(BaseModel):
++    order_id: str
++    amount: int  # paise
++    currency: str
++    key_id: str  # public Razorpay key, safe to expose to the frontend
++    name: str
++    description: str
++
++
++class VerifyPaymentRequest(BaseModel):
++    razorpay_order_id: str
++    razorpay_payment_id: str
++    razorpay_signature: str
+diff --git a/app/static/index.html b/app/static/index.html
+index 77f33a1..eb0f4fa 100644
+--- a/app/static/index.html
++++ b/app/static/index.html
+@@ -594,6 +594,7 @@
+     .topbar-nav { display: none; }
+   }
+ </style>
++<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+ </head>
+ <body>
+ 
+@@ -662,8 +663,8 @@
+       <div class="lock-icon">🔒</div>
+       <h2>Case closed — free limit reached</h2>
+       <p>You've used all 3 free examinations on this account. Upgrade to Pro for unlimited text and image examinations, saved history, and priority processing.</p>
+-      <button class="btn-primary" id="lockUpgradeBtn" type="button">Upgrade to Pro — $19/month</button>
+-      <div class="lock-fine">Cancel anytime from Settings.</div>
++      <button class="btn-primary" id="lockUpgradeBtn" type="button">Upgrade to Pro — ₹499 one-time</button>
++      <div class="lock-fine">One-time payment. Unlimited examinations, forever.</div>
+     </div>
+ 
+     <div class="case-file" id="caseFile">
+@@ -809,8 +810,7 @@
+         </div>
+         <span class="billing-badge free" id="billingBadge">FREE</span>
+       </div>
+-      <button class="billing-btn upgrade" id="billingUpgradeBtn" type="button">Upgrade to Pro — $19/month</button>
+-      <button class="billing-btn downgrade" id="billingDowngradeBtn" type="button" hidden>Cancel Pro plan</button>
++      <button class="billing-btn upgrade" id="billingUpgradeBtn" type="button">Upgrade to Pro — ₹499 one-time</button>
+       <div class="billing-note" id="billingNote">Plan and usage are tied to your account now, not this browser. Upgrade here doesn't collect payment yet — it's a placeholder until real billing (Stripe) is wired in.</div>
+     </div>
+ 
+@@ -911,31 +911,66 @@
+   }
+ 
+   async function goUpgrade() {
+-    // PLACEHOLDER: flips the account to Pro with no payment collected —
+-    // mirrors the backend's /api/auth/upgrade, which is itself a stand-in
+-    // until real checkout (Stripe) is wired up. Safe to click through to
+-    // see the paywall unlock, not something to leave reachable by real
+-    // users before billing exists.
+-    if (!window.confirm('Demo mode: this upgrades your account to Pro without collecting payment. Continue?')) return;
+-    try {
+-      const res = await fetch('/api/auth/upgrade', { method: 'POST', headers: authHeaders() });
+-      if (!res.ok) throw new Error('Upgrade failed.');
+-      currentUser = await res.json();
+-      renderPlanUI();
+-    } catch (err) {
+-      alert(err.message || 'Something went wrong.');
++    if (typeof Razorpay === 'undefined') {
++      alert('Payment widget failed to load — check your connection and try again.');
++      return;
+     }
+-  }
+-
+-  async function goDowngrade() {
++    let order;
+     try {
+-      const res = await fetch('/api/auth/downgrade', { method: 'POST', headers: authHeaders() });
+-      if (!res.ok) throw new Error('Could not cancel Pro plan.');
+-      currentUser = await res.json();
+-      renderPlanUI();
++      const res = await fetch('/api/payments/create-order', { method: 'POST', headers: authHeaders() });
++      if (!res.ok) {
++        const body = await res.json().catch(() => ({}));
++        throw new Error(body.detail || 'Could not start payment.');
++      }
++      order = await res.json();
+     } catch (err) {
+       alert(err.message || 'Something went wrong.');
++      return;
+     }
++
++    const rzp = new Razorpay({
++      key: order.key_id,
++      amount: order.amount,
++      currency: order.currency,
++      name: order.name,
++      description: order.description,
++      order_id: order.order_id,
++      prefill: { email: currentUser ? currentUser.email : '' },
++      theme: { color: '#111111' },
++      handler: async function (response) {
++        try {
++          const verifyRes = await fetch('/api/payments/verify', {
++            method: 'POST',
++            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
++            body: JSON.stringify({
++              razorpay_order_id: response.razorpay_order_id,
++              razorpay_payment_id: response.razorpay_payment_id,
++              razorpay_signature: response.razorpay_signature,
++            }),
++          });
++          if (!verifyRes.ok) {
++            const body = await verifyRes.json().catch(() => ({}));
++            throw new Error(body.detail || 'Payment verification failed.');
++          }
++          currentUser = await verifyRes.json();
++          renderPlanUI();
++          alert('Payment successful — welcome to Pro!');
++        } catch (err) {
++          alert((err.message || 'Something went wrong verifying your payment.') +
++            ' If money was deducted, it will be auto-refunded by Razorpay if this was not resolved.');
++        }
++      },
++      modal: {
++        ondismiss: function () {
++          // User closed the checkout without paying — nothing to do, no
++          // charge was made, no account state changed.
++        },
++      },
++    });
++    rzp.on('payment.failed', function (response) {
++      alert('Payment failed: ' + (response.error && response.error.description ? response.error.description : 'please try again.'));
++    });
++    rzp.open();
+   }
+ 
+   function renderPlanUI() {
+@@ -974,7 +1009,6 @@
+     const billingSub = document.getElementById('billingPlanSub');
+     const billingBadge = document.getElementById('billingBadge');
+     const billingUpgradeBtn = document.getElementById('billingUpgradeBtn');
+-    const billingDowngradeBtn = document.getElementById('billingDowngradeBtn');
+     const accountEmail = document.getElementById('accountEmail');
+     if (accountEmail) accountEmail.textContent = currentUser.email;
+     if (billingName) {
+@@ -986,7 +1020,6 @@
+       billingBadge.classList.toggle('free', plan === 'free');
+       billingBadge.classList.toggle('pro', plan === 'pro');
+       billingUpgradeBtn.hidden = plan === 'pro';
+-      billingDowngradeBtn.hidden = plan !== 'pro';
+     }
+ 
+     // New Examination view: swap case-file for the lock card once free demos are gone
+@@ -999,7 +1032,6 @@
+   document.getElementById('sidebarUpgradeBtn').addEventListener('click', goUpgrade);
+   document.getElementById('lockUpgradeBtn').addEventListener('click', goUpgrade);
+   document.getElementById('billingUpgradeBtn').addEventListener('click', goUpgrade);
+-  document.getElementById('billingDowngradeBtn').addEventListener('click', goDowngrade);
+   document.getElementById('logoutBtn').addEventListener('click', logout);
+ 
+   /* =========================================================
+diff --git a/requirements.txt b/requirements.txt
+index 5fbfca5..92c0cdf 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -10,3 +10,4 @@ passlib[bcrypt]>=1.7
+ bcrypt==4.0.1
+ PyJWT>=2.8
+ pydantic[email]>=2.0
++razorpay>=1.4.2

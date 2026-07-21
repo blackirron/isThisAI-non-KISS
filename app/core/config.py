@@ -22,5 +22,12 @@ class Settings:
 
     CORS_ORIGINS: list[str] = ["*"]
 
+    # Razorpay — one-time "lifetime Pro" purchase. Test-mode keys (rzp_test_...)
+    # work with zero KYC and let you test the full flow with Razorpay's dummy
+    # card/UPI right now; swap in live keys (rzp_live_...) once KYC clears.
+    RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "")
+    RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "")
+    PRO_PRICE_INR: int = int(os.getenv("PRO_PRICE_INR", "499"))
+
 
 settings = Settings()

@@ -27,3 +27,18 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class CreateOrderResponse(BaseModel):
+    order_id: str
+    amount: int  # paise
+    currency: str
+    key_id: str  # public Razorpay key, safe to expose to the frontend
+    name: str
+    description: str
+
+
+class VerifyPaymentRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str

@@ -594,6 +594,7 @@
     .topbar-nav { display: none; }
   }
 </style>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
 
@@ -662,8 +663,8 @@
       <div class="lock-icon">🔒</div>
       <h2>Case closed — free limit reached</h2>
       <p>You've used all 3 free examinations on this account. Upgrade to Pro for unlimited text and image examinations, saved history, and priority processing.</p>
-      <button class="btn-primary" id="lockUpgradeBtn" type="button">Upgrade to Pro — $19/month</button>
-      <div class="lock-fine">Cancel anytime from Settings.</div>
+      <button class="btn-primary" id="lockUpgradeBtn" type="button">Upgrade to Pro — ₹499 one-time</button>
+      <div class="lock-fine">One-time payment. Unlimited examinations, forever.</div>
     </div>
 
     <div class="case-file" id="caseFile">
@@ -809,8 +810,7 @@
         </div>
         <span class="billing-badge free" id="billingBadge">FREE</span>
       </div>
-      <button class="billing-btn upgrade" id="billingUpgradeBtn" type="button">Upgrade to Pro — $19/month</button>
-      <button class="billing-btn downgrade" id="billingDowngradeBtn" type="button" hidden>Cancel Pro plan</button>
+      <button class="billing-btn upgrade" id="billingUpgradeBtn" type="button">Upgrade to Pro — ₹499 one-time</button>
       <div class="billing-note" id="billingNote">Plan and usage are tied to your account now, not this browser. Upgrade here doesn't collect payment yet — it's a placeholder until real billing (Stripe) is wired in.</div>
     </div>
 
@@ -911,31 +911,66 @@
   }
 
   async function goUpgrade() {
-    // PLACEHOLDER: flips the account to Pro with no payment collected —
-    // mirrors the backend's /api/auth/upgrade, which is itself a stand-in
-    // until real checkout (Stripe) is wired up. Safe to click through to
-    // see the paywall unlock, not something to leave reachable by real
-    // users before billing exists.
-    if (!window.confirm('Demo mode: this upgrades your account to Pro without collecting payment. Continue?')) return;
+    if (typeof Razorpay === 'undefined') {
+      alert('Payment widget failed to load — check your connection and try again.');
+      return;
+    }
+    let order;
     try {
-      const res = await fetch('/api/auth/upgrade', { method: 'POST', headers: authHeaders() });
-      if (!res.ok) throw new Error('Upgrade failed.');
-      currentUser = await res.json();
-      renderPlanUI();
+      const res = await fetch('/api/payments/create-order', { method: 'POST', headers: authHeaders() });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || 'Could not start payment.');
+      }
+      order = await res.json();
     } catch (err) {
       alert(err.message || 'Something went wrong.');
+      return;
     }
-  }
 
-  async function goDowngrade() {
-    try {
-      const res = await fetch('/api/auth/downgrade', { method: 'POST', headers: authHeaders() });
-      if (!res.ok) throw new Error('Could not cancel Pro plan.');
-      currentUser = await res.json();
-      renderPlanUI();
-    } catch (err) {
-      alert(err.message || 'Something went wrong.');
-    }
+    const rzp = new Razorpay({
+      key: order.key_id,
+      amount: order.amount,
+      currency: order.currency,
+      name: order.name,
+      description: order.description,
+      order_id: order.order_id,
+      prefill: { email: currentUser ? currentUser.email : '' },
+      theme: { color: '#111111' },
+      handler: async function (response) {
+        try {
+          const verifyRes = await fetch('/api/payments/verify', {
+            method: 'POST',
+            headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            }),
+          });
+          if (!verifyRes.ok) {
+            const body = await verifyRes.json().catch(() => ({}));
+            throw new Error(body.detail || 'Payment verification failed.');
+          }
+          currentUser = await verifyRes.json();
+          renderPlanUI();
+          alert('Payment successful — welcome to Pro!');
+        } catch (err) {
+          alert((err.message || 'Something went wrong verifying your payment.') +
+            ' If money was deducted, it will be auto-refunded by Razorpay if this was not resolved.');
+        }
+      },
+      modal: {
+        ondismiss: function () {
+          // User closed the checkout without paying — nothing to do, no
+          // charge was made, no account state changed.
+        },
+      },
+    });
+    rzp.on('payment.failed', function (response) {
+      alert('Payment failed: ' + (response.error && response.error.description ? response.error.description : 'please try again.'));
+    });
+    rzp.open();
   }
 
   function renderPlanUI() {
@@ -974,7 +1009,6 @@
     const billingSub = document.getElementById('billingPlanSub');
     const billingBadge = document.getElementById('billingBadge');
     const billingUpgradeBtn = document.getElementById('billingUpgradeBtn');
-    const billingDowngradeBtn = document.getElementById('billingDowngradeBtn');
     const accountEmail = document.getElementById('accountEmail');
     if (accountEmail) accountEmail.textContent = currentUser.email;
     if (billingName) {
@@ -986,7 +1020,6 @@
       billingBadge.classList.toggle('free', plan === 'free');
       billingBadge.classList.toggle('pro', plan === 'pro');
       billingUpgradeBtn.hidden = plan === 'pro';
-      billingDowngradeBtn.hidden = plan !== 'pro';
     }
 
     // New Examination view: swap case-file for the lock card once free demos are gone
@@ -999,7 +1032,6 @@
   document.getElementById('sidebarUpgradeBtn').addEventListener('click', goUpgrade);
   document.getElementById('lockUpgradeBtn').addEventListener('click', goUpgrade);
   document.getElementById('billingUpgradeBtn').addEventListener('click', goUpgrade);
-  document.getElementById('billingDowngradeBtn').addEventListener('click', goDowngrade);
   document.getElementById('logoutBtn').addEventListener('click', logout);
 
   /* =========================================================

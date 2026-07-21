@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.routers import health, detect, detect_image, auth
+from app.routers import health, detect, detect_image, auth, payments
 
 app = FastAPI(title=settings.APP_NAME)
 
@@ -26,6 +26,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(detect.router)
 app.include_router(detect_image.router)
+app.include_router(payments.router)
 
 # Clean page routes. These are declared before the StaticFiles mount below,
 # so they take priority over it - the mount only ever handles paths none
