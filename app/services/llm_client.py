@@ -10,7 +10,7 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 # cannot take image input, so this is intentionally a separate constant rather
 # than reusing settings.GROQ_MODEL. Override via GROQ_VISION_MODEL if Groq
 # rotates the model id (they've deprecated vision preview models before).
-GROQ_VISION_MODEL_DEFAULT = "meta-llama/llama-4-scout-17b-16e-instruct"
+GROQ_VISION_MODEL_DEFAULT = "qwen/qwen3.6-27b"
 
 
 async def _ask_groq(prompt: str, system: str | None = None) -> str:
