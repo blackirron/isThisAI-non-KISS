@@ -154,7 +154,8 @@ async def detect_image(
             parsed["verdict"] = str(parsed["verdict"]).lower().strip()
             llm_verdict = parsed
         # else: leave llm_verdict as None -> falls back to forensics-only path
-    except Exception:
+    except Exception as exc:
+	    logger.warning("Vision call failed, falling back to forensics-only: %s", exc) 
         llm_verdict = None
 
     verdict, confidence, reasoning = _fuse_verdict(report, llm_verdict)
